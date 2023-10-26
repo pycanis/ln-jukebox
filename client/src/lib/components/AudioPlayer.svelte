@@ -17,7 +17,7 @@
 	const refetchAndSetAudio = async () => {
 		loadingAudio = true;
 
-		const res = await fetch(`${PUBLIC_API_URL}/stream?ts=${Date.now()}`, {
+		const res = await fetch(`${PUBLIC_API_URL}/stream`, {
 			headers: {
 				'Cache-Control': 'no-store'
 			}
@@ -33,7 +33,7 @@
 	};
 
 	const handleTogglePlay = async () => {
-		if (!audio) {
+		if (!isPlaying || !audio) {
 			audio = await refetchAndSetAudio();
 		}
 
@@ -75,13 +75,20 @@
 		});
 
 		socket.on(WebsocketEvents.AUDIO_READY, async () => {
-			audio?.pause();
-			audio = await refetchAndSetAudio();
+			if (isPlaying) {
+				audio?.pause();
+				audio = await refetchAndSetAudio();
+			}
 
-			await $currentSongQuery.refetch();
+			const { data: updatedData } = await $currentSongQuery.refetch();
+
+			if (updatedData && audio) {
+				audio.currentTime = updatedData.currentSecond;
+			}
+
 			await $queueQuery.refetch();
 
-			if (isPlaying) {
+			if (isPlaying && audio) {
 				audio.play();
 			}
 		});
