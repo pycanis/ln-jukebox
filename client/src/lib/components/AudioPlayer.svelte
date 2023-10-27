@@ -16,7 +16,6 @@
 	let currentSecond = 0;
 	let audio: Howl | undefined;
 	let isLoadingAudio = false;
-	let lastPlayedSongId: string | undefined;
 	let volume = browser
 		? Number(localStorage.getItem(JUKEBOX_VOLUME_KEY) || DEFAULT_VOLUME)
 		: DEFAULT_VOLUME;
@@ -33,11 +32,9 @@
 			format: 'mp3',
 			volume: volume / 100,
 			onload: () => {
-				if (isPlaying) {
-					isLoadingAudio = false;
+				isLoadingAudio = false;
 
-					audio?.play();
-				}
+				audio?.play();
 			}
 		});
 	};
@@ -46,14 +43,7 @@
 		isPlaying = !isPlaying;
 
 		if (isPlaying) {
-			if (lastPlayedSongId === $currentSongQuery.data?.id && audio?.state() === 'loaded') {
-				audio.seek(currentSecond);
-				audio?.play();
-			} else {
-				refetchAndSetAudio();
-			}
-
-			lastPlayedSongId = $currentSongQuery.data?.id;
+			refetchAndSetAudio();
 		} else {
 			audio?.pause();
 		}
@@ -112,7 +102,7 @@
 <progress value={currentSecond} max={$currentSongQuery.data?.durationInSeconds} />
 
 <div class="controls">
-	<input type="range" min={0} max={100} value={volume} on:change={handleVolumeChange} />
+	<input type="range" min={0} max={100} value={volume} on:input={handleVolumeChange} />
 
 	<button on:click={handleTogglePlay} disabled={isLoadingAudio}
 		>{isPlaying ? 'stop' : 'play'}</button
