@@ -4,6 +4,7 @@
 	import { addedQueueItems } from '$lib/store';
 	import { WebsocketEvents } from '$lib/websocketEvents';
 	import { createQuery, type CreateQueryResult } from '@tanstack/svelte-query';
+	import { Howl } from 'howler';
 	import { io } from 'socket.io-client';
 	import { onMount } from 'svelte';
 
@@ -11,53 +12,45 @@
 
 	let isPlaying = false;
 	let currentSecond = 0;
-	let audio: HTMLAudioElement | undefined;
-	let loadingAudio = false;
+	let audio: Howl | undefined;
+	let isLoadingAudio = false;
+	let lastPlayedSongId: string | undefined;
 
-	const refetchAndSetAudio = async () => {
-		loadingAudio = true;
+	const refetchAndSetAudio = () => {
+		isLoadingAudio = true;
 
-		const res = await fetch(`${PUBLIC_API_URL}/stream`, {
-			headers: {
-				'Cache-Control': 'no-store'
+		audio?.unload();
+
+		audio = new Howl({
+			src: [`${PUBLIC_API_URL}/stream`],
+			html5: true,
+			preload: true,
+			format: 'mp3',
+			onload: () => {
+				if (isPlaying) {
+					isLoadingAudio = false;
+
+					audio?.play();
+				}
 			}
 		});
-
-		const buffer = await res.arrayBuffer();
-
-		const blob = new Blob([buffer], { type: 'audio/mpeg' });
-
-		loadingAudio = false;
-
-		return new Audio(URL.createObjectURL(blob));
 	};
 
 	const handleTogglePlay = async () => {
-		if (!isPlaying || !audio) {
-			audio = await refetchAndSetAudio();
-		}
-
 		isPlaying = !isPlaying;
 
 		if (isPlaying) {
-			const previousData = $currentSongQuery.data;
-
-			const { data: updatedData } = await $currentSongQuery.refetch();
-
-			if (!updatedData) {
-				return;
+			console.log({ lastPlayedSongId, current: $currentSongQuery.data?.id });
+			if (lastPlayedSongId === $currentSongQuery.data?.id && audio?.state() === 'loaded') {
+				audio.seek(currentSecond);
+				audio?.play();
+			} else {
+				refetchAndSetAudio();
 			}
 
-			if (previousData?.id !== updatedData.id) {
-				audio.pause();
-				audio = await refetchAndSetAudio();
-			}
-
-			audio.currentTime = updatedData.currentSecond;
-
-			audio.play();
+			lastPlayedSongId = $currentSongQuery.data?.id;
 		} else {
-			audio.pause();
+			audio?.pause();
 		}
 	};
 
@@ -76,28 +69,18 @@
 
 		socket.on(WebsocketEvents.AUDIO_READY, async () => {
 			if (isPlaying) {
-				audio?.pause();
-				audio = await refetchAndSetAudio();
+				refetchAndSetAudio();
 			}
 
-			const { data: updatedData } = await $currentSongQuery.refetch();
-
-			if (updatedData && audio) {
-				audio.currentTime = updatedData.currentSecond;
-			}
-
+			await $currentSongQuery.refetch();
 			await $queueQuery.refetch();
-
-			if (isPlaying && audio) {
-				audio.play();
-			}
 		});
 
 		socket.on(WebsocketEvents.QUEUE_UPDATED, async () => {
 			await $queueQuery.refetch();
 		});
 
-		setInterval(async () => {
+		setInterval(() => {
 			currentSecond++;
 		}, 1000);
 	});
@@ -111,4 +94,4 @@
 
 <progress value={currentSecond} max={$currentSongQuery.data?.durationInSeconds} />
 
-<button on:click={handleTogglePlay} disabled={loadingAudio}>{isPlaying ? 'stop' : 'play'}</button>
+<button on:click={handleTogglePlay} disabled={isLoadingAudio}>{isPlaying ? 'stop' : 'play'}</button>

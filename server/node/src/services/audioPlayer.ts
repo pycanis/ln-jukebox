@@ -32,7 +32,7 @@ export const audioPlayer = async (
 
   const audioReadable = ytdl(currentQueueItem.link, {
     filter: "audio",
-    quality: "lowest",
+    quality: "lowestaudio",
   });
 
   audioReadable
