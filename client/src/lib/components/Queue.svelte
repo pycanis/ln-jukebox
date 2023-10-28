@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { QueueItem } from '$lib/api';
 	import { addedQueueItems } from '$lib/store';
+	import { formatDuration } from '$lib/utils';
 	import type { CreateQueryResult } from '@tanstack/svelte-query';
 
 	export let queueQuery: CreateQueryResult<QueueItem[], unknown>;
@@ -10,6 +11,6 @@
 
 {#each $queueQuery.data ?? [] as queueItem}
 	<p class={$addedQueueItems.includes(queueItem.id) ? 'highlighted' : undefined}>
-		{queueItem.name} - {queueItem.satsAmount} sats
+		{queueItem.name} - {formatDuration(queueItem.durationInSeconds)} - {queueItem.satsAmount} sats
 	</p>
 {/each}

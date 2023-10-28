@@ -6,5 +6,7 @@ export const errorMiddleware = (
   res: Response,
   _next: NextFunction
 ) => {
+  console.error(err);
+
   return res.status(400).send(err.message);
 };

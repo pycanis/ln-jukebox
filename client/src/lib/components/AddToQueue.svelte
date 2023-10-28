@@ -1,25 +1,21 @@
 <script lang="ts">
-	import { PUBLIC_WEBSOCKET_URL } from '$env/static/public';
-	import { generatePaymentRequest, validateLink } from '$lib/api';
+	import { validateLink } from '$lib/api';
 	import type { AddToQueuePaymentSuccessData } from '$lib/types';
-	import { debounce, updateAddedItems } from '$lib/utils';
-	import { WebsocketEvents } from '$lib/websocketEvents';
+	import { debounce } from '$lib/utils';
 	import { createMutation } from '@tanstack/svelte-query';
 	import type { AxiosError } from 'axios';
-	import qrcode from 'qrcode';
-	import { io } from 'socket.io-client';
 	import AddToQueueSuccess from './AddToQueueSuccess.svelte';
+	import Link from './Link.svelte';
+	import Payment from './Payment.svelte';
+	import Search from './Search.svelte';
 
 	let linkInput = '';
-	let satsAmount: number | undefined;
-	let error: string | undefined;
-
 	let displayPaymentSection = false;
-
+	let addOption: 'search' | 'link' | undefined;
+	let satsAmount: number | undefined;
 	let paymentRequest = '';
-	let copyText = 'copy';
-
 	let addToQueueSuccessProps: AddToQueuePaymentSuccessData | undefined;
+	let error: string | undefined;
 
 	$: {
 		if (!linkInput) error = undefined;
@@ -28,6 +24,7 @@
 	const validateLinkMutation = createMutation(validateLink, {
 		onError: (err: AxiosError) => {
 			error = err.response?.data as string;
+			resetPaymentSection();
 		},
 		onSuccess: () => {
 			error = undefined;
@@ -35,51 +32,20 @@
 		}
 	});
 
-	const generatePaymentRequestMutation = createMutation(generatePaymentRequest, {
-		onSuccess: (data) => {
-			qrcode.toCanvas(document.getElementById('canvas'), `lightning:${data.paymentRequest}`);
-
-			paymentRequest = data.paymentRequest;
-
-			const socket = io(PUBLIC_WEBSOCKET_URL, {
-				transports: ['websocket'],
-				query: {
-					paymentRequest
-				}
-			});
-
-			socket.on(WebsocketEvents.PAYMENT_SUCCESS, async (data: AddToQueuePaymentSuccessData) => {
-				addToQueueSuccessProps = data;
-
-				updateAddedItems(data.queueItemId);
-
-				socket.disconnect();
-			});
-		}
-	});
-
-	const handleGeneratePaymentRequest = () =>
-		$generatePaymentRequestMutation.mutate({ link: linkInput, satsAmount: satsAmount as number });
+	const resetPaymentSection = () => {
+		displayPaymentSection = false;
+		satsAmount = undefined;
+		paymentRequest = '';
+	};
 
 	const handleValidateLink = () =>
 		debounce(() => linkInput && $validateLinkMutation.mutate(linkInput));
 
 	const handleResetAddToQueue = () => {
+		addOption = undefined;
 		linkInput = '';
-		satsAmount = undefined;
-		displayPaymentSection = false;
-		paymentRequest = '';
 		addToQueueSuccessProps = undefined;
-	};
-
-	const handleCopyToClipboard = () => {
-		navigator.clipboard.writeText(paymentRequest).then(() => {
-			copyText = 'copied!';
-
-			debounce(() => {
-				copyText = 'copy';
-			}, 3000);
-		});
+		resetPaymentSection();
 	};
 </script>
 
@@ -89,55 +55,52 @@
 	{:else}
 		<h3>add to queue</h3>
 
-		<label for="link"
-			>youtube link (max 10 minutes)
-			{#if displayPaymentSection}
-				<button type="button" on:click={handleResetAddToQueue}>reset link</button>
-			{/if}
-		</label>
-		<input
-			class="input"
-			type="text"
-			id="link"
-			name="link"
-			disabled={$validateLinkMutation.isLoading || displayPaymentSection}
-			bind:value={linkInput}
-			on:keyup={handleValidateLink}
-		/>
+		{#if !!addOption}
+			<button type="button" on:click={handleResetAddToQueue}>reset</button>
+		{/if}
 
-		{#if $validateLinkMutation.isLoading}
-			<p>loading...</p>
+		{#if !addOption}
+			<div class="choice-container">
+				<button
+					on:click={() => {
+						addOption = 'search';
+					}}
+					>search
+				</button>
+				<span>or</span>
+				<button
+					on:click={() => {
+						addOption = 'link';
+					}}
+					>youtube link
+				</button>
+			</div>
+		{/if}
+
+		{#if addOption === 'search'}
+			<Search
+				bind:linkInput
+				isLoading={$validateLinkMutation.isLoading}
+				{handleValidateLink}
+				{resetPaymentSection}
+			/>
+		{/if}
+
+		{#if addOption === 'link'}
+			<Link
+				bind:linkInput
+				isLoading={$validateLinkMutation.isLoading}
+				{displayPaymentSection}
+				{handleValidateLink}
+			/>
 		{/if}
 
 		{#if error}
 			<p>{error}</p>
 		{/if}
 
-		<label for="satsAmount">sats amount (the more the higher in queue)</label>
-		<input
-			class="input"
-			type="number"
-			id="satsAmount"
-			name="satsAmount"
-			min={1}
-			disabled={!displayPaymentSection}
-			bind:value={satsAmount}
-		/>
-
-		<button
-			type="button"
-			disabled={!displayPaymentSection || !satsAmount || satsAmount < 1 || !!paymentRequest}
-			on:click={handleGeneratePaymentRequest}>generate invoice</button
-		>
-
 		{#if displayPaymentSection}
-			<canvas id="canvas" />
-		{/if}
-
-		{#if paymentRequest && displayPaymentSection}
-			<p>{paymentRequest}</p>
-
-			<button type="button" on:click={handleCopyToClipboard}>{copyText}</button>
+			<Payment bind:addToQueueSuccessProps bind:satsAmount bind:paymentRequest {linkInput} />
 		{/if}
 	{/if}
 </div>
@@ -148,8 +111,18 @@
 		overflow: hidden;
 	}
 
-	.input {
-		width: 100%;
+	.choice-container {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	span {
 		margin-bottom: 1rem;
+	}
+
+	p {
+		color: red;
+		margin-top: 1rem;
 	}
 </style>

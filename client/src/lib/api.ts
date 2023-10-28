@@ -14,9 +14,15 @@ export type QueueItem = {
 	satsAmount: number;
 };
 
+export type SearchItem = {
+	videoId: string;
+	title: string;
+};
+
 export const QUERY_CACHE_KEYS = {
 	QUEUE: 'queue',
-	CURRENT_SONG: 'currentSong'
+	CURRENT_SONG: 'currentSong',
+	SEARCH: 'search'
 };
 
 export const validateLink = async (link: string) =>
@@ -29,6 +35,9 @@ export const generatePaymentRequest = async (body: { link: string; satsAmount: n
 			body
 		)
 	).data;
+
+export const searchAudio = async (q: string) =>
+	(await axiosClient.get<SearchItem[]>('/search', { params: { q } })).data;
 
 export const getCurrentSong = async () => (await axiosClient.get<CurrentSong | null>('/')).data;
 

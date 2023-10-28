@@ -1,3 +1,5 @@
+// @ts-ignore
+import youtubesearchapi from "youtube-search-api";
 import ytdl from "ytdl-core";
 import { QueueStatus, prisma } from "../db";
 import { currentSecond } from "../services/audioPlayer";
@@ -44,6 +46,49 @@ export const getQueueRoutes = ({ app }: RouteParams) => {
         durationInSeconds: item.durationInSeconds,
         name: item.name,
         satsAmount: item.satsAmount,
+      }))
+    );
+  });
+
+  // youtube api allows only 100 searches per day... unusable
+  // app.get("/search", async (req, res) => {
+  //   const q = req.query.q;
+
+  //   if (!q) {
+  //     throw new Error("Specify search query");
+  //   }
+  //   const { data } = await youtube.search.list({
+  //     part: ["snippet"],
+  //     type: ["video"],
+  //     q: q as string,
+  //     key: YOUTUBE_API_KEY,
+  //   });
+
+  //   const items = data.items?.map((item) => ({
+  //     videoId: item.id?.videoId,
+  //     title: item.snippet?.title,
+  //   }));
+
+  //   res.json(items);
+  // });
+
+  app.get("/search", async (req, res) => {
+    const q = req.query.q;
+
+    if (!q) {
+      throw new Error("Specify search query");
+    }
+
+    const data = await youtubesearchapi
+      .GetListByKeyword(q, false, 5, [{ type: "video" }])
+      .catch((e: unknown) => {
+        console.error(e);
+      });
+
+    res.json(
+      data.items.map((item: { id: string; title: string }) => ({
+        videoId: item.id,
+        title: item.title,
       }))
     );
   });
