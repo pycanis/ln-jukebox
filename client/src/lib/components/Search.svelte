@@ -30,7 +30,7 @@
 			resetPaymentSection();
 
 			searchText = q;
-		});
+		}, 1200);
 	};
 
 	const handleAudioSelect = (
@@ -49,6 +49,7 @@
 <input
 	type="search"
 	placeholder="search audio.."
+	data-theme="dark"
 	disabled={$searchQuery.isFetching || isLoading}
 	value={searchText}
 	on:input={handleSearchInputChange}

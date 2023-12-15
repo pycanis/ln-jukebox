@@ -8,6 +8,7 @@
 <input
 	type="text"
 	name="link"
+	data-theme="dark"
 	placeholder="youtube link (max 10 minutes)"
 	disabled={isLoading || displayPaymentSection}
 	bind:value={linkInput}

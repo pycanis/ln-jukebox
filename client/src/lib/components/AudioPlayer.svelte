@@ -65,6 +65,7 @@
 		onSuccess: (data) => {
 			if (data) {
 				currentSecond = data.currentSecond;
+				document.title = data.name;
 			}
 		}
 	});
@@ -99,10 +100,17 @@
 	{$currentSongQuery.data?.name || '-'}
 </p>
 
-<progress value={currentSecond} max={$currentSongQuery.data?.durationInSeconds} />
+<progress value={currentSecond} max={$currentSongQuery.data?.durationInSeconds} data-theme="dark" />
 
 <div class="controls">
-	<input type="range" min={0} max={100} value={volume} on:input={handleVolumeChange} />
+	<input
+		type="range"
+		data-theme="dark"
+		min={0}
+		max={100}
+		value={volume}
+		on:input={handleVolumeChange}
+	/>
 
 	<button on:click={handleTogglePlay} disabled={isLoadingAudio}
 		>{isPlaying ? 'stop' : 'play'}</button

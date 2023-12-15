@@ -60,6 +60,7 @@
 	name="satsAmount"
 	min={1}
 	bind:value={satsAmount}
+	data-theme="dark"
 />
 
 <button

@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import ytdl from "ytdl-core";
 import { CURRENT_SONG_PATH } from "../constants";
 import { QueueStatus, prisma } from "../db";
+import { seedQueue } from "../scripts/seedQueue";
 import { WebsocketEvents } from "../websocketEvents";
 import { getCurrentQueueItem } from "./getCurrentQueueItem";
 
@@ -14,11 +15,11 @@ export const audioPlayer = async (
   io: Server
 ) => {
   if (!currentQueueItem) {
-    console.log("Nothing to play, retry in a minute..");
+    console.log("Nothing to play, seeding queue..");
 
-    setTimeout(async () => {
-      audioPlayer(await getCurrentQueueItem(), io);
-    }, 10000); // 10 seconds
+    await seedQueue(150, 250);
+
+    audioPlayer(await getCurrentQueueItem(), io);
 
     return;
   }
